@@ -1,4 +1,4 @@
-from .bet import BetType, Bet
+from craps.bet import BetType, Bet
 from typing import List, Tuple, Any
 
 class Player:

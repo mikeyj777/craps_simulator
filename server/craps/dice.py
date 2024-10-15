@@ -14,6 +14,10 @@ class DicePair:
         self.dice1 = Dice()
         self.dice2 = Dice()
 
+    def roll_sum(self):
+        self.roll()
+        return self.sum()
+
     def roll(self):
         return self.dice1.roll(), self.dice2.roll()
 

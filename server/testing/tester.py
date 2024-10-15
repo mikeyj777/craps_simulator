@@ -1,8 +1,13 @@
-import pygame
+import os
 import sys
-from ..game.dice import DicePair
-from ..game.bet import BetType, Bet
-from ..game.craps_table import CrapsTable, Player
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import pygame
+
+from craps.dice import DicePair
+from craps.bet import BetType, Bet
+from craps.table import CrapsTable, Player
+
 
 pygame.init()
 
@@ -31,7 +36,7 @@ def test_dice():
     num_rolls = 1000
 
     for _ in range(num_rolls):
-        result = dice_pair.sum()
+        result = dice_pair.roll_sum()
         rolls[result] += 1
 
     # Visual representation
@@ -59,7 +64,7 @@ def test_bet():
     results = []
 
     for _ in range(10):
-        dice_sum = DicePair().sum()
+        dice_sum = DicePair().roll_sum()
         winnings, keep_bet = bet.resolve(dice_sum)
         results.append((dice_sum, winnings, keep_bet))
 
