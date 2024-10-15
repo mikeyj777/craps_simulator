@@ -1,13 +1,12 @@
+# tester.py
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pygame
-
-from craps.dice import DicePair
-from craps.bet import BetType, Bet
-from craps.table import CrapsTable, Player
-
+from craps.bets import BetType, ways_to_play
+from craps.table import CrapsTable
+from craps.agent import Agent
 
 pygame.init()
 
@@ -30,97 +29,6 @@ def draw_text(text, color, x, y):
     text_surface = font.render(text, True, color)
     screen.blit(text_surface, (x, y))
 
-def test_dice():
-    dice_pair = DicePair()
-    rolls = [0] * 13
-    num_rolls = 1000
-
-    for _ in range(num_rolls):
-        result = dice_pair.roll_sum()
-        rolls[result] += 1
-
-    # Visual representation
-    screen.fill(WHITE)
-    draw_text("Dice Test", BLACK, 10, 10)
-    
-    for i in range(2, 13):
-        height = rolls[i] * 2
-        pygame.draw.rect(screen, BLUE, (50 + (i-2)*60, 550 - height, 50, height))
-        draw_text(str(i), BLACK, 65 + (i-2)*60, 560)
-
-    # Verification method 1: Check if all numbers are rolled
-    all_rolled = all(rolls[i] > 0 for i in range(2, 13))
-    draw_text(f"All numbers rolled: {'Yes' if all_rolled else 'No'}", GREEN if all_rolled else RED, 10, 50)
-
-    # Verification method 2: Check if 7 is the most common roll
-    most_common = max(range(2, 13), key=lambda x: rolls[x])
-    draw_text(f"Most common roll is 7: {'Yes' if most_common == 7 else 'No'}", GREEN if most_common == 7 else RED, 10, 90)
-
-    pygame.display.flip()
-    wait_for_key()
-
-def test_bet():
-    bet = Bet(BetType.PASS_LINE, 10)
-    results = []
-
-    for _ in range(10):
-        dice_sum = DicePair().roll_sum()
-        winnings, keep_bet = bet.resolve(dice_sum)
-        results.append((dice_sum, winnings, keep_bet))
-
-    # Visual representation
-    screen.fill(WHITE)
-    draw_text("Bet Test (Pass Line)", BLACK, 10, 10)
-
-    for i, (dice_sum, winnings, keep_bet) in enumerate(results):
-        color = GREEN if winnings > 0 else RED if winnings < 0 else BLUE
-        draw_text(f"Roll: {dice_sum}, Winnings: ${winnings}, Keep: {keep_bet}", color, 10, 50 + i*40)
-
-    # Verification method 1: Check if there's at least one win and one loss
-    has_win = any(winnings > 0 for _, winnings, _ in results)
-    has_loss = any(winnings < 0 for _, winnings, _ in results)
-    draw_text(f"Has wins and losses: {'Yes' if has_win and has_loss else 'No'}", GREEN if has_win and has_loss else RED, 10, 460)
-
-    # Verification method 2: Check if keep_bet is False when there's a win or loss
-    correct_keep = all((winnings == 0) == keep_bet for _, winnings, keep_bet in results)
-    draw_text(f"Correct keep_bet behavior: {'Yes' if correct_keep else 'No'}", GREEN if correct_keep else RED, 10, 500)
-
-    pygame.display.flip()
-    wait_for_key()
-
-def test_craps_table():
-    table = CrapsTable(min_bet=5, max_bet=100)
-    player = table.add_player(1000)
-    
-    bets = [
-        (BetType.PASS_LINE, 10),
-        (BetType.PLACE_WIN, 20, 6),
-        (BetType.FIELD, 15),
-    ]
-
-    for bet_type, amount, *args in bets:
-        table.place_bet(player, bet_type, amount, *args)
-
-    # Visual representation
-    screen.fill(WHITE)
-    draw_text("Craps Table Test", BLACK, 10, 10)
-
-    draw_text(f"Player Bankroll: ${player.bankroll}", BLUE, 10, 50)
-    for i, (_, bet) in enumerate(table.bets):
-        draw_text(f"Bet {i+1}: {bet}", BLACK, 10, 90 + i*40)
-
-    # Verification method 1: Check if all bets are placed
-    all_bets_placed = len(table.bets) == len(bets)
-    draw_text(f"All bets placed: {'Yes' if all_bets_placed else 'No'}", GREEN if all_bets_placed else RED, 10, 250)
-
-    # Verification method 2: Check if player's bankroll is correctly updated
-    expected_bankroll = 1000 - sum(bet[1] for bet in bets)
-    correct_bankroll = player.bankroll == expected_bankroll
-    draw_text(f"Correct bankroll: {'Yes' if correct_bankroll else 'No'}", GREEN if correct_bankroll else RED, 10, 290)
-
-    pygame.display.flip()
-    wait_for_key()
-
 def wait_for_key():
     waiting = True
     while waiting:
@@ -131,10 +39,125 @@ def wait_for_key():
             if event.type == pygame.KEYDOWN:
                 waiting = False
 
+def test_table():
+    table = CrapsTable()
+    
+    # Test 1: Pass Line Bet (winning scenario)
+    screen.fill(WHITE)
+    draw_text("Table Test 1: Pass Line Bet (Win)", BLACK, 10, 10)
+    table.add_roll(7)
+    table.update_winnings(7)
+    draw_text(f"Pass Line Result: {table.winnings[BetType.PASS_LINE]}", GREEN, 10, 50)
+    draw_text(f"Expected: 1", BLACK, 10, 90)
+    pygame.display.flip()
+    wait_for_key()
+
+    # Test 2: Pass Line Bet (losing scenario)
+    screen.fill(WHITE)
+    draw_text("Table Test 2: Pass Line Bet (Loss)", BLACK, 10, 10)
+    table.add_roll(2)
+    table.update_winnings(2)
+    draw_text(f"Pass Line Result: {table.winnings[BetType.PASS_LINE]}", RED, 10, 50)
+    draw_text(f"Expected: -1", BLACK, 10, 90)
+    pygame.display.flip()
+    wait_for_key()
+
+    # Test 3: Place Win Bet
+    screen.fill(WHITE)
+    draw_text("Table Test 3: Place Win Bet", BLACK, 10, 10)
+    table.add_roll(6)
+    table.update_winnings(6)
+    draw_text(f"Place Win 6 Result: {table.winnings[BetType.PLACE_WIN][6]}", GREEN, 10, 50)
+    draw_text(f"Expected: 1", BLACK, 10, 90)
+    pygame.display.flip()
+    wait_for_key()
+
+def test_agent():
+    agent = Agent(100)
+    table = CrapsTable()
+
+    # Test 1: Place bet and win
+    screen.fill(WHITE)
+    draw_text("Agent Test 1: Place Bet and Win", BLACK, 10, 10)
+    agent.place_bet(BetType.PASS_LINE, 10)
+    table.add_roll(7)
+    table.update_winnings(7)
+    initial_bankroll = agent.bankroll
+    payout = agent.calculate_payouts(table.winnings)
+    agent.receive_payouts(payout)
+    draw_text(f"Initial Bankroll: ${initial_bankroll:.2f}", BLACK, 10, 50)
+    draw_text(f"Payout: ${payout:.2f}", GREEN, 10, 90)
+    draw_text(f"Final Bankroll: ${agent.bankroll:.2f}", BLUE, 10, 130)
+    draw_text(f"Expected: ${initial_bankroll + 10:.2f}", BLACK, 10, 170)
+    pygame.display.flip()
+    wait_for_key()
+
+    # Test 2: Place bet and lose
+    screen.fill(WHITE)
+    draw_text("Agent Test 2: Place Bet and Lose", BLACK, 10, 10)
+    agent.place_bet(BetType.PASS_LINE, 10)
+    table.add_roll(2)
+    table.update_winnings(2)
+    initial_bankroll = agent.bankroll
+    payout = agent.calculate_payouts(table.winnings)
+    agent.receive_payouts(payout)
+    draw_text(f"Initial Bankroll: ${initial_bankroll:.2f}", BLACK, 10, 50)
+    draw_text(f"Payout: ${payout:.2f}", RED, 10, 90)
+    draw_text(f"Final Bankroll: ${agent.bankroll:.2f}", BLUE, 10, 130)
+    draw_text(f"Expected: ${initial_bankroll - 10:.2f}", BLACK, 10, 170)
+    pygame.display.flip()
+    wait_for_key()
+
+    # Test 3: Place multiple bets
+    screen.fill(WHITE)
+    draw_text("Agent Test 3: Multiple Bets", BLACK, 10, 10)
+    agent.place_bet(BetType.PASS_LINE, 10)
+    agent.place_bet(BetType.PLACE_WIN, 10, 6)
+    table.add_roll(6)
+    table.update_winnings(6)
+    initial_bankroll = agent.bankroll
+    payout = agent.calculate_payouts(table.winnings)
+    agent.receive_payouts(payout)
+    draw_text(f"Initial Bankroll: ${initial_bankroll:.2f}", BLACK, 10, 50)
+    draw_text(f"Payout: ${payout:.2f}", GREEN, 10, 90)
+    draw_text(f"Final Bankroll: ${agent.bankroll:.2f}", BLUE, 10, 130)
+    expected_payout = 10 * (7/6)  # Place Win on 6 pays 7:6
+    draw_text(f"Expected Payout: ${expected_payout:.2f}", BLACK, 10, 170)
+    pygame.display.flip()
+    wait_for_key()
+
+def test_agent_wagering():
+    screen.fill(WHITE)
+    draw_text("Agent Wagering Test", BLACK, 10, 10)
+
+    agent = Agent(100)
+    
+    # Test 1: Place bet within limits
+    agent.place_bet(BetType.PASS_LINE, 50)
+    draw_text(f"Bet 1: Pass Line $50", BLACK, 10, 50)
+    draw_text(f"Current Wagered: ${agent.current_amount_wagered}", BLUE, 10, 90)
+    draw_text(f"Expected: $50", BLACK, 10, 130)
+
+    # Test 2: Try to place bet exceeding bankroll
+    agent.place_bet(BetType.COME, 60)
+    draw_text(f"Bet 2: Come $60 (should be capped at $50)", BLACK, 10, 170)
+    draw_text(f"Current Wagered: ${agent.current_amount_wagered}", BLUE, 10, 210)
+    draw_text(f"Expected: $100", BLACK, 10, 250)
+
+    # Test 3: Remove a bet
+    agent.remove_bet(BetType.PASS_LINE)
+    draw_text(f"Remove Pass Line bet", BLACK, 10, 290)
+    draw_text(f"Current Wagered: ${agent.current_amount_wagered}", BLUE, 10, 330)
+    draw_text(f"Expected: $50", BLACK, 10, 370)
+
+    pygame.display.flip()
+    wait_for_key()
+
+# Add this to your main() function
 def main():
-    test_dice()
-    test_bet()
-    test_craps_table()
+    test_table()
+    test_agent()
+    test_agent_wagering()
 
 if __name__ == "__main__":
     main()
